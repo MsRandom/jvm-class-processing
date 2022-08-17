@@ -14,7 +14,7 @@ gradlePlugin {
 }
 
 group = "net.msrandom"
-version = "0.2"
+version = "0.3"
 
 group = rootProject.group
 version = rootProject.version
