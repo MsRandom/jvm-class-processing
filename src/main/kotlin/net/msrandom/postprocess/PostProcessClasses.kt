@@ -5,6 +5,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.*
+import org.gradle.api.tasks.Optional
 import org.objectweb.asm.*
 import org.objectweb.asm.tree.*
 import java.io.FileNotFoundException
@@ -22,6 +23,11 @@ abstract class PostProcessClasses : DefaultTask() {
     abstract val annotationType: Property<String>
         @Input get
 
+    abstract val ignoreAnnotationType: Property<String>
+        @Input
+        @Optional
+        get
+
     abstract val classesDirectory: DirectoryProperty
         @InputDirectory
         @PathSensitive(PathSensitivity.RELATIVE)
@@ -37,7 +43,9 @@ abstract class PostProcessClasses : DefaultTask() {
         apply {
             extensionPackages.finalizeValueOnRead()
             annotationType.finalizeValueOnRead()
+            ignoreAnnotationType.finalizeValueOnRead()
             classesDirectory.finalizeValueOnRead()
+            destinationDirectory.finalizeValueOnRead()
         }
     }
 
@@ -69,11 +77,15 @@ abstract class PostProcessClasses : DefaultTask() {
         }
     }
 
+    private fun List<AnnotationNode>?.isIgnored(ignoreAnnotationDescriptor: String?) =
+        ignoreAnnotationDescriptor != null && this?.any { it.desc == ignoreAnnotationDescriptor } == true
+
     @TaskAction
     fun process() {
         val processed = hashSetOf<Path>()
 
         val annotationDescriptor = "L${annotationType.get().asInternalName};"
+        val ignoreAnnotationDescriptor = ignoreAnnotationType.orNull?.let { "L${it.asInternalName};" }
 
         val classes = classesDirectory.asFile.get().toPath()
         val destination = destinationDirectory.asFile.get().toPath()
@@ -95,8 +107,15 @@ abstract class PostProcessClasses : DefaultTask() {
                         continue
                     }
 
-                    val annotation = extensionNode.invisibleAnnotations?.firstOrNull { it.desc == annotationDescriptor }
-                        ?: throw UnsupportedOperationException("File $path in $extensionPackage does not contain the ${this.annotationType.get()} annotation")
+                    val annotation = extensionNode.invisibleAnnotations?.firstOrNull { it.desc == annotationDescriptor } ?: extensionNode.visibleAnnotations?.firstOrNull { it.desc == annotationDescriptor }
+
+                    if (annotation == null) {
+                        if (extensionNode.invisibleAnnotations.isIgnored(ignoreAnnotationDescriptor) || extensionNode.visibleAnnotations.isIgnored(ignoreAnnotationDescriptor)) {
+                            continue
+                        }
+
+                        throw UnsupportedOperationException("File $path in $extensionPackage does not contain the ${this.annotationType.get()} annotation")
+                    }
 
                     val value = annotation.values[annotation.values.indexOfFirst { it == "value" } + 1] as Type
                     val baseRelativePath = "${value.internalName}.class"
@@ -119,12 +138,16 @@ abstract class PostProcessClasses : DefaultTask() {
                     }
 
                     for (field in extensionNode.fields) {
+                        if (field.invisibleAnnotations.isIgnored(ignoreAnnotationDescriptor) || field.visibleAnnotations.isIgnored(ignoreAnnotationDescriptor)) continue
+
                         if (baseNode.fields.none { it.name == field.name }) {
                             baseNode.fields.add(field)
                         }
                     }
 
                     for (method in extensionNode.methods) {
+                        if (method.invisibleAnnotations.isIgnored(ignoreAnnotationDescriptor) || method.visibleAnnotations.isIgnored(ignoreAnnotationDescriptor)) continue
+
                         addMethod(baseNode, method)
                     }
 

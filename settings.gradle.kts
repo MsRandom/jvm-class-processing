@@ -1,3 +1,1 @@
-rootProject.name = "jvm-class-processing"
-
-include("jvm-pre-processing", "jvm-post-processing")
+rootProject.name = "jvm-post-processing"
