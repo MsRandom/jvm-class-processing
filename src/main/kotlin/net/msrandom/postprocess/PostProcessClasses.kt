@@ -90,6 +90,12 @@ abstract class PostProcessClasses : DefaultTask() {
         val classes = classesDirectory.asFile.get().toPath()
         val destination = destinationDirectory.asFile.get().toPath()
 
+        processed.add(classes.resolve("${annotationType.get().asInternalName}.class"))
+
+        if (ignoreAnnotationType.isPresent) {
+            processed.add(classes.resolve("${ignoreAnnotationType.get().asInternalName}.class"))
+        }
+
         for (extensionPackage in extensionPackages.get()) {
             val packagePath = classes.resolve(extensionPackage.asInternalName)
 
