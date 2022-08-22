@@ -1,18 +1,20 @@
-package net.msrandom.postprocess
+package net.msrandom.extensions
 
 import org.objectweb.asm.Handle
 import org.objectweb.asm.Type
+import org.objectweb.asm.signature.SignatureReader
+import org.objectweb.asm.signature.SignatureWriter
 import org.objectweb.asm.tree.*
 
 private fun Type.replaceExtensionReferences(extensionName: String, baseName: String): Type = if (sort == Type.ARRAY) {
     Type.getType("[${elementType.replaceExtensionReferences(extensionName, baseName).descriptor}")
 } else if (sort == Type.OBJECT && internalName == extensionName) {
-    Type.getObjectType("L$baseName;")
+    Type.getObjectType(baseName)
 } else {
     this
 }
 
-private fun Type.replaceMethodDescriptor(extensionName: String, baseName: String): Type {
+internal fun Type.replaceMethodDescriptor(extensionName: String, baseName: String): Type {
     val returnType = returnType.replaceExtensionReferences(extensionName, baseName)
     val argumentTypes = argumentTypes.map { it.replaceExtensionReferences(extensionName, baseName) }
 
@@ -64,6 +66,8 @@ private fun InvokeDynamicInsnNode.replaceExtensionReferences(extensionName: Stri
         return Handle(handle.tag, newOwner, handle.name, newDesc, handle.isInterface)
     }
 
+    desc = Type.getMethodType(desc).replaceMethodDescriptor(extensionName, baseName).descriptor
+
     bsm = fixHandle(bsm)
 
     bsmArgs = bsmArgs.map {
@@ -110,10 +114,77 @@ private fun AbstractInsnNode.replaceExtensionReferences(extensionName: String, b
     }
 }
 
-fun MethodNode.replaceExtensionReferences(extensionName: String, baseName: String) {
+private fun MethodNode.replaceExtensionReferences(extensionName: String, baseName: String) {
     desc = Type.getMethodType(desc).replaceMethodDescriptor(extensionName, baseName).descriptor
+
+    for (localVariable in localVariables) {
+        localVariable.desc = Type.getType(localVariable.desc).replaceExtensionReferences(extensionName, baseName).descriptor
+    }
 
     for (instruction in instructions) {
         instruction.replaceExtensionReferences(extensionName, baseName)
+    }
+}
+
+internal fun methodType(baseNode: ClassNode, extensionNode: ClassNode, method: MethodNode) =
+    Type.getMethodType(method.desc).replaceMethodDescriptor(extensionNode.name, baseNode.name)
+
+internal fun ClassNode.replaceClassReferences(extensionName: String, baseName: String) {
+    name = name.replace(extensionName, baseName)
+    signature = replaceSignature(signature, extensionName, baseName)
+    interfaces = interfaces?.map { if (it == extensionName) baseName else it }
+
+    if (superName == extensionName) {
+        superName = baseName
+    }
+
+    if (outerClass == extensionName) {
+        outerClass = baseName
+    }
+
+    if (nestHostClass == extensionName) {
+        nestHostClass = baseName
+    }
+
+    outerMethodDesc = outerMethodDesc?.let { Type.getMethodType(it).descriptor }
+
+    for (innerClass in innerClasses) {
+        innerClass.name = innerClass.name.replace(extensionName, baseName)
+
+        if (innerClass.outerName == extensionName) {
+            innerClass.outerName = baseName
+        }
+    }
+
+    for (field in fields) {
+        field.signature = replaceSignature(field.signature, extensionName, baseName)
+        field.desc = Type.getType(field.desc).descriptor
+    }
+
+    for (method in methods) {
+        method.signature = replaceSignature(method.signature, extensionName, baseName)
+        method.replaceExtensionReferences(extensionName, baseName)
+
+        for (localVariable in method.localVariables) {
+            localVariable.signature = replaceSignature(localVariable.signature, extensionName, baseName)
+        }
+    }
+}
+
+private fun replaceSignature(signature: String?, extensionName: String, baseName: String): String? {
+    if (signature == null) return null
+
+    val writer = ReplacingVisitor(extensionName, baseName)
+    SignatureReader(signature).accept(writer)
+    return writer.toString()
+}
+
+private class ReplacingVisitor(private val extensionName: String, private val baseName: String) : SignatureWriter() {
+    override fun visitClassType(name: String) {
+        if (name == extensionName) {
+            super.visitClassType(baseName)
+        } else {
+            super.visitClassType(name)
+        }
     }
 }
