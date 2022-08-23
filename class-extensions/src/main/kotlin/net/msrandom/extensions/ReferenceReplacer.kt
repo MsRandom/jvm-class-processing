@@ -165,8 +165,10 @@ internal fun ClassNode.replaceClassReferences(extensionName: String, baseName: S
         method.signature = replaceSignature(method.signature, extensionName, baseName)
         method.replaceExtensionReferences(extensionName, baseName)
 
-        for (localVariable in method.localVariables) {
-            localVariable.signature = replaceSignature(localVariable.signature, extensionName, baseName)
+        if (method.localVariables != null) {
+            for (localVariable in method.localVariables) {
+                localVariable.signature = replaceSignature(localVariable.signature, extensionName, baseName)
+            }
         }
     }
 }
