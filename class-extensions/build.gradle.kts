@@ -16,7 +16,7 @@ gradlePlugin {
 }
 
 group = "net.msrandom"
-version = "1.0"
+version = "1.1"
 
 base {
     archivesName.set(pluginId)
@@ -29,6 +29,7 @@ repositories {
 dependencies {
     implementation(gradleApi())
     implementation(group = "org.ow2.asm", name = "asm-tree", version = "9.3")
+    implementation(group = "org.apache.commons", name = "commons-lang3", version = "3.12.0")
     implementation(projects.classExtensionAnnotations)
 
     testImplementation(gradleTestKit())

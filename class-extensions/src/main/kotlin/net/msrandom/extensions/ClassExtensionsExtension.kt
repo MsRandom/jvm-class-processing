@@ -1,11 +1,11 @@
 package net.msrandom.extensions
 
 import net.msrandom.extensions.annotations.ClassExtension
+import org.apache.commons.lang3.StringUtils
 import org.gradle.api.Project
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.compile.AbstractCompile
-import org.gradle.configurationcache.extensions.capitalized
 
 open class ClassExtensionsExtension(private val project: Project) {
     /**
@@ -26,9 +26,9 @@ open class ClassExtensionsExtension(private val project: Project) {
      */
     @Suppress("MemberVisibilityCanBePrivate")
     fun registerForSourceSet(sourceSet: SourceSet, sourceDirectorySet: SourceDirectorySet, vararg packages: String) {
-        val sourceSetPart = if (sourceSet.name == SourceSet.MAIN_SOURCE_SET_NAME) "" else sourceSet.name.capitalized()
+        val sourceSetPart = if (sourceSet.name == SourceSet.MAIN_SOURCE_SET_NAME) "" else StringUtils.capitalize(sourceSet.name)
 
-        val task = project.tasks.maybeCreate("process${sourceSetPart}${sourceDirectorySet.name.capitalized()}Classes", PostProcessClasses::class.java)
+        val task = project.tasks.maybeCreate("process${sourceSetPart}${StringUtils.capitalize(sourceDirectorySet.name)}Classes", PostProcessClasses::class.java)
         task.extensionPackages.addAll(*packages)
 
         project.tasks.withType(AbstractCompile::class.java).getByName(sourceSet.getCompileTaskName(sourceDirectorySet.name)) {
