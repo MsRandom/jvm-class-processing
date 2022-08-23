@@ -117,7 +117,7 @@ private fun AbstractInsnNode.replaceExtensionReferences(extensionName: String, b
 private fun MethodNode.replaceExtensionReferences(extensionName: String, baseName: String) {
     desc = Type.getMethodType(desc).replaceMethodDescriptor(extensionName, baseName).descriptor
 
-    if (method.localVariables != null) {
+    if (localVariables != null) {
         for (localVariable in localVariables) {
             localVariable.desc = Type.getType(localVariable.desc).replaceExtensionReferences(extensionName, baseName).descriptor
         }
