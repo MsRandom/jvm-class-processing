@@ -1,3 +1,9 @@
+# **THIS PROJECT IS ARCHIVED**
+## This has been reworked into two different projects that now live in the [jvm-multiplatform](https://github.com/terrarium-earth/jvm-multiplatform) suite
+<br/>
+<br/>
+<br/>
+
 # jvm-class-extensions
 Allows extending classes within the same compilation unit as a simple Gradle task, for example:
 
